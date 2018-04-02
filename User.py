@@ -10,14 +10,19 @@ from tkkc_captcha import request_capture
 
 user = namedtuple('User', 'number pwd')
 def user_info(student_num=None):
+    type_num = 0
     while True:
         # student = user('2014211781', 'zjy5704074')    #
-        if student_num is None:
+        if student_num is None or type_num > 0:
             student_num = input('student_number: ').strip()
-        if not student_num.isalnum() or len(student_num) != 10 or not student_num.startswith('20'):
+        if not student_num.isnumeric() or len(student_num) != 10 or not student_num.startswith('20'):
+            type_num += 1
             print('学号输入错误, 请重新输入')
             continue
         pwd = getpass.getpass('password: ').strip()
+        if not pwd:
+            print('密码不能为空!')
+            continue
         student = user(student_num, pwd)
         break
     return student
