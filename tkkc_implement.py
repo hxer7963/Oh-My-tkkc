@@ -75,10 +75,6 @@ def bbs_page(bbs_url, name):
     entities.sort(reverse=True)
     user_name_num = len(re.findall(user_info, status.text))
     discuss_cnt = 3 - user_name_num  # 还需评论数
-    if discuss_cnt <= 0:
-        print('{}课程已经评论{}次'.format(name, user_name_num - 1))
-    else:
-        print('{}课程还需评论{}次'.format(name, discuss_cnt))
     forum_id = '&forumId=(.*?)&'  # forumId=
     forum_id = re.search(forum_id, status.text).group(1)
     if len(entities) > 10:
@@ -89,7 +85,8 @@ def bbs_page(bbs_url, name):
 def bbs_task(name, teaching_task_id, course_id, forum_id, resource_url, discuss_cnt, questions):     # 提问题
     # 不再从xlsx中获取题目，而是从已经发布的页面获取跟帖较高的题目
     # questions = question_extract(name, resource_url, discuss_cnt)
-    print('bbs_task len(questions) =', len(questions))
+    print('{}课程还需评论{}次'.format(name, discuss_cnt))
+    # print('bbs_task len(questions) =', len(questions))
     idx = -1
     for i in range(discuss_cnt):
         from random import randint

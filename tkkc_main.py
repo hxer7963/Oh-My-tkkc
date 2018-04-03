@@ -33,13 +33,9 @@ def main():
         forum_id, discuss_cnt, entities = bbs_page(bbs_url, course_name)
         # 进入学习 获取课程任务页面：题库下载、自测、考试
         resource_url, exam_time, task_queue = task_assignment(learning_url, teaching_task_id, forum_id)  # 返回set，存储各测试的url
-        # 进行评论
-        if discuss_cnt > 0 and entities:
-            bbs_task(course_name, teaching_task_id, course_id, forum_id, resource_url, discuss_cnt, entities)
         exam = True
         xls_download = False
         unfinished_num = 0
-
         for category in task_queue.keys():  # 使用多线程，assignment_document请求document，manage_exam中请求xhr
             try:
                 task_url = task_queue[category]
@@ -55,6 +51,9 @@ def main():
                     time.sleep(1)
                 else:
                     print('好气啊!{} {}还有{}道题目未做....'.format(course_name, category, unfinished_num))
+                    # 进行评论
+                    if discuss_cnt > 0 and entities:
+                        bbs_task(course_name, teaching_task_id, course_id, forum_id, resource_url, discuss_cnt, entities)
                     if not xls_download:
                         download_xls(course_name, resource_url)
                     xls_download = True
