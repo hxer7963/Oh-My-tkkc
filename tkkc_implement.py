@@ -90,14 +90,13 @@ def bbs_task(name, teaching_task_id, course_id, forum_id, resource_url, discuss_
     idx = -1
     for i in range(discuss_cnt):
         from random import randint
-        aux = randint(0, len(questions))
+        aux = randint(0, len(questions)-1)
         while idx == aux and len(questions) > 1:
-            aux = randint(0, len(questions))
+            aux = randint(0, len(questions)-1)
         idx = aux
         post_url = '/student/bbs/manageDiscuss.do?{}&method=toAdd&teachingTaskId={}&forumId={}&' \
                                  'isModerator=false'.format(date(), teaching_task_id, forum_id)
         status = get(post_url, index_header)    # 获取发布讨论的网页
-
         data = {
             'forumId': forum_id,
             'teachingTaskId': teaching_task_id,
