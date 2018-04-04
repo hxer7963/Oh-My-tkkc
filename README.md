@@ -1,4 +1,4 @@
-# Oh-My-tkkc
+#Oh-My-tkkc
 
 oh-my-tkkc is a complete automatic crawler pragram which only need to type your student num and password in [tkkc](tkkc.hfut.edu.cn), then it will identification verfication code by send the bytes of captcha to [API](http://api.hfutoyi/codeapi), What you need to do is **just** to check the result and file *your* exercise or exam to server.
 
@@ -65,8 +65,4 @@ Because the type of compressed file is rar, And rarfile third-party library is u
 (tkkc) $ python tkkc_main.py
 ```
 
-<<<<<<< HEAD
 Type your personal details included student num and password, if password invalid, Oh-My-tkkc will explicit in plain-text in terminal ! When it finished, Don't forget to open the [tkkc](http://tkkc.hfut.edu.cn) to file your exercise/exam. enjoying it !
-=======
-Type your personal details included student num and password, if password invalid, Oh-My-tkkc will explicit in plain-text in terminal ! When it finished, Don't forget to open the [URL](http://tkkc.hfut.edu.cn) to file your exercise/exam. enjoying it !
->>>>>>> 72ae4c7f8cb1bba9dbf64f8568b2069259007f69
