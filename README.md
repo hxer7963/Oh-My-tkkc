@@ -8,8 +8,8 @@ To learn more, visit [oh-my-tkkc](https://hxer.me/post/cb3e52e1.html).
 
 #### Prerequisits
 
-* python3 should be installed on your platform. [how to install python3](http://docs.python-guide.org/en/latest/starting/installation/)
-* UnRaR.exe should be installed on your platform, **Note**: not install with `pip`;
+* python3 should be installed on your platform. [Using Python on Windows](https://docs.python.org/3/using/windows.html) 
+* UnRaR.exe should be installed on your **platform**。
 
 #### Installion
 
@@ -47,7 +47,7 @@ Because the type of compressed file is rar, And rarfile third-party library is u
   (tkkc) $ python -c "import rarfile; print(rarfile.__file__)"
   ```
 
-  * Modify the `UNRAR_TOOL="the path of UnRAR.exe"`;
+  * Modify the `UNRAR_TOOL=r"the path of UnRAR.exe"`;
 
   see [details](https://stackoverflow.com/questions/17614467/how-can-unrar-a-file-with-python) 
 
@@ -57,7 +57,7 @@ Because the type of compressed file is rar, And rarfile third-party library is u
 
 * MAC OS X
 
-  `brew install unrar-free`
+  `brew install unrar`
 
 ##### Launch it
 
