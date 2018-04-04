@@ -1,4 +1,4 @@
-#Oh-My-tkkc
+# Oh-My-tkkc
 
 oh-my-tkkc is a complete automatic crawler pragram which only need to type your student num and password in [tkkc](tkkc.hfut.edu.cn), then it will identification verfication code by send the bytes of captcha to [API](http://api.hfutoyi/codeapi), What you need to do is **just** to check the result and file *your* exercise or exam to server.
 
