@@ -11,8 +11,7 @@ from tkkc_captcha import request_capture
 user = namedtuple('User', 'number pwd')
 def user_info(student_num=None):
     type_num = 0
-    while True:
-        # student = user('2014211781', 'zjy5704074')    #
+    while True:       
         if student_num is None or type_num > 0:
             student_num = input('student_number: ').strip()
         if not student_num.isnumeric() or len(student_num) != 10 or not student_num.startswith('20'):
