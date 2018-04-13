@@ -5,7 +5,6 @@
 @time: 2017/4/21 23:08
 """
 import os
-import time
 from tkkc_implement import index_page, courses_homepage, bbs_page, bbs_task, task_assignment, assignment_document, manage_exam
 from xls_data_process import download_xls, xlsx_directory, delete_xlsx
 from User import user_login
@@ -13,7 +12,8 @@ from User import user_login
 
 def main():
     user_login()
-    start_time = time.time()
+    from time import perf_counter as pc
+    start_time = pc()
     try:
         courses = index_page()
     except IndexError:
@@ -57,32 +57,32 @@ def main():
                     if not xls_download:
                         download_xls(course_name, resource_url)
                     xls_download = True
-                    time_stamp = time.time()
+                    time_stamp = pc()
                     manage_exam(course_name, questions_set)
                     if unfinished_num != 0:
-                        finished_info = '{}{}已完成,共保存{}题,用时{}s，请手动提交作业........'.\
-                            format(course_name, category,  unfinished_num, int(time.time()-time_stamp))
-                        print(finished_info)
-                        abstract.append(finished_info)
+                        FMT = '{}{}已完成,共保存{}题,用时{:.2f}s，请手动提交作业........'
+                        printInfo = FMT.format(course_name, category,  unfinished_num, pc()-time_stamp)
+                        print(printInfo)
+                        abstract.append(printInfo)
 
         if xls_download:
             print('')
             delete_xlsx(course_name)
         if not exam:
             if unfinished_num != 0:
-                print('{}课程自测任务已经完成,用时{}s，请手动提交作业。'.format(course_name, int(time.time() - time_stamp)))
+                print('{}课程自测任务已经完成,用时{:.2f}s，请手动提交作业。'.format(course_name, pc() - time_stamp))
             print('提示：考试“截止”时间为：{}。'.format(exam_time))
         elif task_queue:
             exam_finished_info = '{}课程考试题目已保存，请手动提交考试作业 >>希望没挂...<<'.format(course_name)
             print(exam_finished_info)
             abstract.append(exam_finished_info)
     if abstract:
-        print('当前任务全都保存成功~~ 总耗时用时{}s，以下是需要提交的作业摘要'.format(int(time.time() - start_time)))
+        print('当前任务全都保存成功~~ 总耗时用时{}s，以下是需要提交的作业摘要'.format(pc() - start_time))
         print('-'*40)
         for info in abstract:
             print(info)
         print('-'*40)
-        print('请登录http://tkkc.hfut.edu.cn 提交作业<注意确认 "多选题" 是否成功提交，出现异常请联系 setup_@outlook.com')
+        print('请登录http://tkkc.hfut.edu.cn 提交作业<注意确认 "多选题" 是否成功提交')
     delete_xlsx()
 
 if __name__ == '__main__':
