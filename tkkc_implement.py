@@ -77,23 +77,16 @@ def bbs_page(bbs_url, name):
     discuss_cnt = 3 - user_name_num  # 还需评论数
     forum_id = '&forumId=(.*?)&'  # forumId=
     forum_id = re.search(forum_id, status.text).group(1)
-    if len(entities) > 10:
-        entities = entities[:10]
+    if len(entities) > 13:
+        entities = entities[:13]
     return forum_id, discuss_cnt, entities
 
 
-def bbs_task(name, teaching_task_id, course_id, forum_id, resource_url, discuss_cnt, questions):     # 提问题
-    # 不再从xlsx中获取题目，而是从已经发布的页面获取跟帖较高的题目
-    # questions = question_extract(name, resource_url, discuss_cnt)
-    print('{}课程还需评论{}次'.format(name, discuss_cnt))
-    # print('bbs_task len(questions) =', len(questions))
-    idx = -1
-    for i in range(discuss_cnt):
-        from random import randint
-        aux = randint(0, len(questions)-1)
-        while idx == aux and len(questions) > 1:
-            aux = randint(0, len(questions)-1)
-        idx = aux
+def bbs_task(name, teaching_task_id, course_id, forum_id, resource_url, dis_cnt, questions):     # 提问题
+    print('{}课程还需评论{}次'.format(name, dis_cnt))
+    from random import choice
+    qst = [choice(questions) for _ in range(dis_cnt)]
+    for i in range(dis_cnt):
         post_url = '/student/bbs/manageDiscuss.do?{}&method=toAdd&teachingTaskId={}&forumId={}&' \
                                  'isModerator=false'.format(date(), teaching_task_id, forum_id)
         status = get(post_url, index_header)    # 获取发布讨论的网页
@@ -101,15 +94,15 @@ def bbs_task(name, teaching_task_id, course_id, forum_id, resource_url, discuss_
             'forumId': forum_id,
             'teachingTaskId': teaching_task_id,
             'isModerator': 'false',
-            'topic': questions[idx][1],
-            'content': questions[idx][1],
+            'topic': qst[i],
+            'content': qst[i],
         }
         dispatch = '/student/bbs/manageDiscuss.do?{}&method=add'.format(date())
         post(dispatch, data, index_header)  # 这是一个302转发
         bbs_index = '/student/bbs/index.do?teachingTaskId={}&forumId={}&{}&'\
             .format(teaching_task_id, course_id, date())  # 直接添加就行
         get(bbs_index, index_header)
-        print('讨论问题：{}'.format(questions[idx][1]))
+        print('讨论问题：{}'.format(qst[i]))
     return forum_id
 
 
