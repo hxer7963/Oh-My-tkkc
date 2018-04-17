@@ -5,8 +5,8 @@
 @time: 2017/4/21 23:08
 """
 import os
-from tkkc_implement import index_page, courses_homepage, bbs_page, bbs_task, task_assignment, assignment_document, manage_exam
-from xls_data_process import download_xls, xlsx_directory, delete_xlsx
+from tkkc_implement import main_page, courses_homepage, bbs_page, bbs_task, task_assignment, assignment_document, manage_exam
+from xls_data_process import download_xls, xlsx_directory
 from User import user_login
 
 
@@ -15,7 +15,7 @@ def main():
     from time import perf_counter as pc
     start_time = pc()
     try:
-        courses = index_page()
+        courses = main_page()
     except IndexError:
         print('当前用户尚未加入到系统中，请确认账号是否正确，以及本期是否有选课！')
         exit()
@@ -35,6 +35,7 @@ def main():
         resource_url, exam_time, task_queue = task_assignment(learning_url, teaching_task_id, forum_id)  # 返回set，存储各测试的url
         exam = True
         xls_download = False
+        download_xls(course_name, resource_url)
         unfinished_num = 0
         for category in task_queue.keys():  # 使用多线程，assignment_document请求document，manage_exam中请求xhr
             try:
@@ -48,7 +49,6 @@ def main():
                 if unfinished_num == 0:
                     abstract.append('好气啊!{} {}保存好了竟然忘了提交作业******请尽快提交该题作业!'.
                                     format(course_name, category))
-                    time.sleep(1)
                 else:
                     print('好气啊!{} {}还有{}道题目未做....'.format(course_name, category, unfinished_num))
                     # 进行评论
@@ -65,9 +65,6 @@ def main():
                         print(printInfo)
                         abstract.append(printInfo)
 
-        if xls_download:
-            print('')
-            delete_xlsx(course_name)
         if not exam:
             if unfinished_num != 0:
                 print('{}课程自测任务已经完成,用时{:.2f}s，请手动提交作业。'.format(course_name, pc() - time_stamp))
@@ -83,7 +80,6 @@ def main():
             print(info)
         print('-'*40)
         print('请登录http://tkkc.hfut.edu.cn 提交作业<注意确认 "多选题" 是否成功提交')
-    delete_xlsx()
 
 if __name__ == '__main__':
     main()

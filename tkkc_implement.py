@@ -16,7 +16,7 @@ from tkkc_headers import tkkc_header, login_header, xhr_header, document_header,
 from User import user
 
 
-def index_page():
+def main_page():
     index_url = '/student/index.do?{}&'.format(date())   # 作为之后登陆的Referer
     set_cookie(index_header, 'JSESSIONID')
     index_header['Cookie'] += '; '
@@ -30,7 +30,8 @@ def index_page():
     text = response.text
     tree = html.fromstring(text)
     info = tree.xpath('//div[@class="bottom"]')[0].text.split()[:-1]
-    print(' '.join(info))      # 输出用户信息
+    UserInfo = '| ' + ' '.join(info) + ' |'
+    print('-'*len(UserInfo), '\n', UserInfo, '\n', '-'*len(UserInfo))
     course = {}
     list_course = tree.xpath('//ul[@class="subNav"]')[0]
     for node in list_course.xpath('./li'):
@@ -89,7 +90,7 @@ def bbs_task(name, teaching_task_id, course_id, forum_id, resource_url, dis_cnt,
     for i in range(dis_cnt):
         post_url = '/student/bbs/manageDiscuss.do?{}&method=toAdd&teachingTaskId={}&forumId={}&' \
                                  'isModerator=false'.format(date(), teaching_task_id, forum_id)
-        status = get(post_url, index_header)    # 获取发布讨论的网页
+        get(post_url, index_header)    # 获取发布讨论的网页
         data = {
             'forumId': forum_id,
             'teachingTaskId': teaching_task_id,
@@ -113,6 +114,7 @@ def task_assignment(task_homepage, teaching_task_id, forum_id):     # 获取自�
     index_header['Referer'] = task_homepage
     texts = status.text
     tree = html.fromstring(texts)
+    cur_state_idx = [_.strip() for _ in tree.xpath('//tr[@class="bg_tr"]/th/text()') if _.strip()].index('当前状态')
     tr = tree.xpath('//tr[@class="a"]')
     questions_set = {}
     for task in tr:
@@ -120,18 +122,15 @@ def task_assignment(task_homepage, teaching_task_id, forum_id):     # 获取自�
         if category == '题库下载':
             resource_url = task.xpath('.//a/@href')[0]
         else:
-            try:
-                completed = task.xpath('.//a[@href]')[0]    # 是否已完成任务
-            except IndexError as index_error:
-                completed.text = '查看任务'     # 考完试后，不能查看，即没有<a href>的标签
-            if completed.text == '进入任务':
-                task_url = completed.get('href')
-                questions_set[category] = task_url
-            else:
-                score = task.xpath('./td[5]')[0].text.strip()  # 完成的输出以提示
-                print(category, score, '..................')
             if category == '考试':
                 exam_time = task.xpath('./td[4]')[0].text.strip()
+            cur_state = [_.strip() for _ in task.xpath('./td//text()') if _.strip()]
+            if '已完成' in cur_state[cur_state_idx]:
+                print('%s %s ^_^' % (cur_state[1], cur_state[cur_state_idx]))
+                continue
+            completed = task.xpath('.//a[@href]')[0]  # 没有完成任务则给出链接
+            task_url = completed.get('href')
+            questions_set[category] = task_url
     return resource_url, exam_time, questions_set     # 答题的链接
 # examReplyId examId teachingTaskId在不同的自测任务中不同。exercise_set为list, 每道题不同.
 constant = namedtuple('Constant', 'date_time examReplyId examId teachingTaskId exercise_set')
@@ -167,7 +166,7 @@ def assignment_document(task_url):  # 获取没有加载xhr题目的页面，得
 def xhr_question(date_time, reply_id, student_exercise_id, exercise_id):
     url = '/student/exam/manageExam.do'
     data = {
-        '{}'.format(date_time): '',
+        str(date_time): '',
         'method': 'getExerciseInfo',
         'examReplyId': reply_id,
         'exerciseId': exercise_id,
@@ -178,7 +177,7 @@ def xhr_question(date_time, reply_id, student_exercise_id, exercise_id):
     return r.json()
 
 
-def manage_exam(course_name, assignment):
+def manage_exam(xls_dict, course_name, assignment):
     date_time = assignment.date_time
     exam_reply_id = assignment.examReplyId
     data = {
@@ -191,10 +190,9 @@ def manage_exam(course_name, assignment):
     }
     for examStudentExerciseId, exerciseId, count in assignment.exercise_set:
         json = xhr_question(date_time, exam_reply_id,  examStudentExerciseId, exerciseId)
-        types = json['type']
         try:
-            title, options_answers, category = json_extract(count, json)
-            answer = xls_search_answer(title, options_answers, category, course_name)
+            title, options_answers, category = json_extract(json)
+            answer = xls_search_answer(xls_dict, title, options_answers, category)
         except ValueError as exc:   # 没有找打就不保存题目，直接下一题
             print(exc, '没有保存该题，请手动提交时补写')
         else:
@@ -202,10 +200,10 @@ def manage_exam(course_name, assignment):
             data['exerciseId'] = exerciseId
             print('正在保存...', end=' ')
             sys.stdout.flush()
+            types = json['type']
             for i in range(3):
                 status = save_answer(types, answer, data)
                 if status["status"] == 'fail':    # 失败了继续提交到队列中
-                    time.sleep(0.3)
                     save_answer(types, answer, data)
                     print('保存失败...正在尝试再次保存此题')
                     if i == 2:
@@ -215,14 +213,11 @@ def manage_exam(course_name, assignment):
                     print('保存成功')
                     break
 
-"""
-duoxAnswer:A,B,C
-DXanswer:B
-DuoXanswerA:A
-DuoXanswerB:B
-DuoXanswerC:C
-"""
 def save_answer(types, answers_list, data):
+    """
+    duoxAnswer:A,B,C DXanswer:B DuoXanswerA:A
+    DuoXanswerB:B DuoXanswerC:C
+    """
     data_copy = data.copy()
     if types == 1:
         prefix = 'DXanswer'
