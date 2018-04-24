@@ -4,10 +4,11 @@
 @contact: hxer7963@gmail.com
 @time: 2017/4/21 23:08
 """
-import sys, re, time
+import sys, re
 from collections import namedtuple
 from lxml import html
 from PIL import Image
+import requests
 
 from tkkc_common import date, post, get, session, set_cookie
 from xls_data_process import xls_search_answer, json_extract
@@ -64,10 +65,12 @@ def courses_homepage(name, course_url):
 def extract_qst(href):
     tree = html.fromstring(get(href, index_header).text)
     title = tree.xpath('//div[@class="assignment-head"]/text()')
-    content = tree.xpath('//div[@class="BbsContent"]/span/text()')
+    content = tree.xpath('//div[@class="BbsContent"]/span//text()')
     if not content:
-        content = title
-    return (title[0].strip(), content[0].strip)
+        content = title[0].strip()
+    else:
+        content = '\n'.join([stm.strip() for stm in content])
+    return (title[0].strip(), content)
 
 
 # 请求“交流”页面，同时获取高跟帖问题
@@ -93,7 +96,6 @@ def bbs_page(bbs_url, name):
 
 
 def bbs_task(name, teaching_task_id, course_id, forum_id, dis_cnt, questions):     # 提问题
-    print('-'*20, questions)
     from random import choice
     hrefs = [choice(questions)[1] for _ in range(dis_cnt)]
     qst = [extract_qst(href) for href in hrefs]
@@ -153,7 +155,7 @@ def assignment_document(task_url):  # 获取没有加载xhr题目的页面，得
     text = status.text
     alert = '任务未开始'
     if re.search(alert, text):
-        raise TimeoutError('目前考试未开始')
+        raise ValueError('目前考试未开始')
     xhr_header['Referer'] = task_url
     save_answer_headers['Referer'] = task_url
     # xpath to get examReplyId examId teachingTaskId in Form
@@ -165,7 +167,12 @@ def assignment_document(task_url):  # 获取没有加载xhr题目的页面，得
     # print(exam_reply_id, exam_id, teaching_task_id)
 
     exercise_id = '"complete":false,"examStudentExerciseId":(.*?),"exerciseId":(.*?),"index":(.*?)}'  #
-    exercise_set = re.findall(exercise_id, text)
+    exercise_set = [(exam, Id, int(idx)) for exam, Id, idx in re.findall(exercise_id, text)]
+    if 1 < len(exercise_set) < 20:
+        from operator import itemgetter
+        exercise_set.sort(key=itemgetter(2))
+        if exercise_set[0][2] != exercise_set[1][2]-1 and exercise_set[-2][2] != exercise_set[-1][2]-1:
+            raise ValueError('当前还有{}道题没找到答案,题号为: {}'.format(len(exercise_set), ','.join([str(item[2]) for item in exercise_set])))
     date_time = '/student/exam/manageExam.do?(.*?)&method=getExerciseInfo'
     date_time = re.search(date_time, text).group(1)[1:]
     const = constant(date_time=date_time, examReplyId=exam_reply_id, examId=exam_id,
@@ -198,27 +205,29 @@ def manage_exam(xls_dict, course_name, assignment):
         'teachingTaskId': assignment.teachingTaskId,
         'content': '',
     }
+    idx = 1
     for examStudentExerciseId, exerciseId, count in assignment.exercise_set:
         json = xhr_question(date_time, exam_reply_id,  examStudentExerciseId, exerciseId)
         try:
             title, options_answers, category = json_extract(json)
+            print(str(idx) + '.', title); idx += 1
             answer = xls_search_answer(xls_dict, title, options_answers, category)
         except ValueError as exc:   # 没有找打就不保存题目，直接下一题
-            print(exc, '没有保存该题，请手动提交时补写')
+            print('没有找到答案, 请自行补题:-)')
         else:
             data['examStudentExerciseId'] = examStudentExerciseId
             data['exerciseId'] = exerciseId
+            print('答案为:', ' '.join(answer))
             print('正在保存...', end=' ')
             sys.stdout.flush()
             types = json['type']
             for i in range(3):
-                status = save_answer(types, answer, data)
-                if status["status"] == 'fail':    # 失败了继续提交到队列中
+                try:
                     save_answer(types, answer, data)
-                    print('保存失败...正在尝试再次保存此题')
+                except requests.exceptions.ConnectionError as ce:
+                    print(ce)
                     if i == 2:
                         assignment.exercise_set.append((examStudentExerciseId, exerciseId, count))
-                        print('网络太拥塞了，题目保存三次都失败了..，稍后再尝试提交这道题...')
                 else:
                     print('保存成功')
                     break
@@ -243,10 +252,9 @@ def save_answer(types, answers_list, data):
         for answer in answers_list:
             key = prefix.format(answer)
             data_copy[key] = 'true'     # 切莫用data，因为传过来的data是按址传参的...
-    # if types != 4:
-    #     print('非多选题，不必重做', end=' ')
-    #     sys.stdout.flush()
-    #     return {"status": "ok"}
     hand_url = '/student/exam/manageExam.do?{}&method=saveAnswer'.format(date())
-    response = post(hand_url, data_copy, save_answer_headers)   # response "status": "ok"
+    try:
+        response = post(hand_url, data_copy, save_answer_headers)   # response "status": "ok"
+    except requests.exceptions.ConnectionError:
+        raise ConnectionError("Connection aborted.', RemoteDisconnected('Remote end closed connection without response',)")
     return response.json()    # AssertionError

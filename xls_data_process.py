@@ -39,7 +39,7 @@ def excel_dict(xlsx_url):
     resource = re.search(resourceId_pattern, download_page)
     resourceDownloadPermeters = 'data: "(.*?)&.*&taskId=(.*?)&iscomplete'
     postPermeters = re.search(resourceDownloadPermeters, download_page)
-    print(postPermeters.group(1), postPermeters.group(2))
+    print('正在下载excel文件...')
     download_url = 'http://tkkc.hfut.edu.cn/checkResourceDownload.do' #?{}'.format(postPermeters[1])
     data = {
         postPermeters[1]: None,
@@ -68,10 +68,8 @@ def excel_dict(xlsx_url):
             raise TypeError("compress Type isn't zip nor rar!")
             exit(1)
     else:
-        print(archive.infolist())
         for file in archive.infolist():
             if file.filename.endswith('.xls'):
-                print(file.filename)
                 with archive.open(file) as fd:
                     import xlrd
                     xls = xlrd.open_workbook(file_contents=fd.read())
@@ -117,7 +115,6 @@ def xls_search_answer(xls_dict, title, options_answers, sheet_name):
     if (sheet_name != '多选题' and len(answers_list) > 1) or (not answers_list) or (sheet_name == '多选题' and len(answers_list) < 2):
         # print(title, options_answers)       # 输出没有找到答案的题目与选项
         raise ValueError('没有找到答案')
-    print('答案为: {}'.format(' '.join(answers_list)))
     return answers_list
 
 

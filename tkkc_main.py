@@ -5,17 +5,17 @@
 @time: 2017/4/21 23:08
 """
 from tkkc_implement import main_page, courses_homepage, bbs_page, bbs_task, task_assignment, assignment_document, manage_exam
-from User import user_login
 
 
 def main():
+    from User import user_login
     user_login()
     try:
         courses = main_page()
     except IndexError:
         print('当前用户尚未加入到系统中，请确认账号是否正确，以及本期是否有选课！')
         exit()
-    from time import perf_counter as pc
+    from time import perf_counter as pc, sleep
     start_time = pc()
     abstract = []
     for course_name in courses.keys():
@@ -38,18 +38,18 @@ def main():
             try:
                 task_url = task_queue[category]
                 questions_set = assignment_document(task_url)  # 请求任务document
-            except TimeoutError as timeout:
-                exam = False
-                print('{}'.format(course_name), timeout)
+            except ValueError as ve:
+                print(ve)
+                continue
             else:
                 unfinished_num = len(questions_set.exercise_set)
                 if unfinished_num > 0:
                     print('好气啊!{} {}还有{}道题目未做....'.format(course_name, category, unfinished_num))
                     from xls_data_process import excel_dict
-                    xls_dict = excel_dict(resource_url)
+                    xls_dict = excel_dict(resource_url)     # 获取excel文件hash title存储到dict中
                     time_stamp = pc()
                     manage_exam(xls_dict, course_name, questions_set)
-
+                    sleep(1)
                     FMT = '{}{}已完成,共保存{}题,用时{:.2f}s，请手动提交作业........'
                     printInfo = FMT.format(course_name, category,  unfinished_num, pc()-time_stamp)
                     print(printInfo)
