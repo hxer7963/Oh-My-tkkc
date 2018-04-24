@@ -10,7 +10,7 @@ from lxml import html
 from PIL import Image
 
 from tkkc_common import date, post, get, session, set_cookie
-from xls_data_process import xls_search_answer, json_extract, question_extract
+from xls_data_process import xls_search_answer, json_extract
 from tkkc_headers import tkkc_header, login_header, xhr_header, document_header, \
     save_answer_headers, index_header, capture_header
 from User import user
@@ -30,15 +30,14 @@ def main_page():
     text = response.text
     tree = html.fromstring(text)
     info = tree.xpath('//div[@class="bottom"]')[0].text.split()[:-1]
-    UserInfo = '| ' + ' '.join(info) + ' |'
-    print('-'*len(UserInfo), '\n', UserInfo, '\n', '-'*len(UserInfo))
+    print(' '.join(info))
     course = {}
     list_course = tree.xpath('//ul[@class="subNav"]')[0]
     for node in list_course.xpath('./li'):
         href = node.get('onclick').split("'")[1]
         name = node.xpath('./span/@title')[0]
         course[name] = href  # 课程及href
-    print('您有{}门试题库，分别为: {}'.format(len(course), ' '.join(course.keys())))
+    print('您有{}门试题库: {}'.format(len(course), ', '.join(course.keys())))
     if len(course) == 0:   # 没有选修课程肯定是进不去的，所以应该在登录界面进行re匹配特定的alert
         print('没选试题库？')
         exit()
@@ -61,6 +60,16 @@ def courses_homepage(name, course_url):
     bbs = tasks[-1].get('onclick').split("'")[1]
     return task_homepage, bbs   # 当前任务、交流 url
 
+
+def extract_qst(href):
+    tree = html.fromstring(get(href, index_header).text)
+    title = tree.xpath('//div[@class="assignment-head"]/text()')
+    content = tree.xpath('//div[@class="BbsContent"]/span/text()')
+    if not content:
+        content = title
+    return (title[0].strip(), content[0].strip)
+
+
 # 请求“交流”页面，同时获取高跟帖问题
 def bbs_page(bbs_url, name):
     status = get(bbs_url, index_header)
@@ -70,23 +79,24 @@ def bbs_page(bbs_url, name):
     questions = tree.xpath('//tr[@class="a"]')
     entities = []
     for question in questions:
-        qst = question.xpath('td/a/text()')[0].strip()
+        qst_href = question.xpath('td/a/@href')[0].strip()
         comments = int([item.strip() for item in question.xpath('td/text()') if item.strip()][1])
-        entities.append([comments, qst])
-    entities.sort(reverse=True)
+        entities.append((comments, qst_href))
+    entities.sort()
     user_name_num = len(re.findall(user_info, status.text))
     discuss_cnt = 3 - user_name_num  # 还需评论数
     forum_id = '&forumId=(.*?)&'  # forumId=
     forum_id = re.search(forum_id, status.text).group(1)
     if len(entities) > 13:
-        entities = entities[:13]
+        entities = entities[-13:]
     return forum_id, discuss_cnt, entities
 
 
-def bbs_task(name, teaching_task_id, course_id, forum_id, resource_url, dis_cnt, questions):     # 提问题
-    print('{}课程还需评论{}次'.format(name, dis_cnt))
+def bbs_task(name, teaching_task_id, course_id, forum_id, dis_cnt, questions):     # 提问题
+    print('-'*20, questions)
     from random import choice
-    qst = [choice(questions) for _ in range(dis_cnt)]
+    hrefs = [choice(questions)[1] for _ in range(dis_cnt)]
+    qst = [extract_qst(href) for href in hrefs]
     for i in range(dis_cnt):
         post_url = '/student/bbs/manageDiscuss.do?{}&method=toAdd&teachingTaskId={}&forumId={}&' \
                                  'isModerator=false'.format(date(), teaching_task_id, forum_id)
@@ -95,15 +105,15 @@ def bbs_task(name, teaching_task_id, course_id, forum_id, resource_url, dis_cnt,
             'forumId': forum_id,
             'teachingTaskId': teaching_task_id,
             'isModerator': 'false',
-            'topic': qst[i],
-            'content': qst[i],
+            'topic': qst[i][0],
+            'content': qst[i][1],
         }
         dispatch = '/student/bbs/manageDiscuss.do?{}&method=add'.format(date())
         post(dispatch, data, index_header)  # 这是一个302转发
         bbs_index = '/student/bbs/index.do?teachingTaskId={}&forumId={}&{}&'\
             .format(teaching_task_id, course_id, date())  # 直接添加就行
         get(bbs_index, index_header)
-        print('讨论问题：{}'.format(qst[i]))
+        print('讨论问题->标题:{}, 内容:{}'.format(*qst[i]))
     return forum_id
 
 

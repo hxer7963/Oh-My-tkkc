@@ -13,9 +13,7 @@ from tkkc_headers import document_header
 
 
 def xls2dict(xls):
-    """
-    xls is a type of xlrd.open_workbook
-    """
+    """ param: xls -> a type of xlrd.open_workbook """
     sheets_name = ['单选题', '多选题', '判断题']
     from collections import defaultdict
     xls_dict = defaultdict(list)
@@ -26,8 +24,8 @@ def xls2dict(xls):
             continue
         rows = sheet.nrows
         for row_no in range(rows):
-            qst = data_clear(str(sheet.row(row_no)[0].value)
-            answers = sheet.row(row_no)[-1].value.split(',')
+            qst = data_clear(str(sheet.row(row_no)[0].value))
+            answers = str(sheet.row(row_no)[-1].value).split(',')
             if sheet_name == '判断题':
                 answers = ['A'] if answers[0].strip() == '正确' else ['B']
             xls_dict[hash(qst)] = answers
@@ -69,13 +67,15 @@ def excel_dict(xlsx_url):
         except rarfile.error:
             raise TypeError("compress Type isn't zip nor rar!")
             exit(1)
-        else:
-            for file in archive.infolist():
-                if file.filename.endswith('.xls'):
-                    with archive.open(file) as fd:
-                        import xlrd
-                        xls = xlrd.open_workbook(file_contents=fd.read())
-                        return xls2dict(xls)
+    else:
+        print(archive.infolist())
+        for file in archive.infolist():
+            if file.filename.endswith('.xls'):
+                print(file.filename)
+                with archive.open(file) as fd:
+                    import xlrd
+                    xls = xlrd.open_workbook(file_contents=fd.read())
+                    return xls2dict(xls)
 
 
 def json_extract(json):
