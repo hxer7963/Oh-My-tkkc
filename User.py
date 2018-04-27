@@ -37,7 +37,7 @@ class User():
             set_cookie(captcha_header, 'JSESSIONID')
 
             captcha_code = request_captcha()
-            data : {annonuce: 'annonuce', 'loginMethod': annonuce + 'button',
+            data = {annonuce: 'annonuce', 'loginMethod': annonuce + 'button',
                     'logname': self.number, 'password': self.pwd,
                     'randomCode': captcha_code}
             texts = post(login_url, data, login_header).text   # return loginMsg cookie

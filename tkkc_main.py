@@ -10,6 +10,7 @@ from User import User
 
 def main():
     user = User()
+    user.login()
     try:
         courses = main_page()
     except IndexError:

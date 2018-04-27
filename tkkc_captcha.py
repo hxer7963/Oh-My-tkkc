@@ -2,16 +2,16 @@
 # encoding: utf-8
 
 from tkkc_common import get, post, session
-from tkkc_headers import capture_header
+from tkkc_headers import captcha_header
 
 
 def request_captcha():
-    # print(capture_header['Cookie'])
-    capture_url = '/getRandomImage.do'
-    im = get(capture_url, capture_header)
+    # print(captcha_header['Cookie'])
+    captcha_url = '/getRandomImage.do'
+    im = get(captcha_url, captcha_header)
     import urllib
     image = urllib.parse.quote_from_bytes(im.content)
-    capture_code = session.post('http://api.hfutoyj.cn/codeapi', data={'image': image}).text
-    print("capture Code: ", capture_code)
-    return capture_code
+    captcha_code = session.post('http://api.hfutoyj.cn/codeapi', data={'image': image}).text
+    print("captcha Code: ", captcha_code)
+    return captcha_code
 
