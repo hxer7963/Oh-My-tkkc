@@ -14,7 +14,6 @@ from tkkc_common import date, post, get, session, set_cookie
 from xls_data_process import xls_search_answer, json_extract
 from tkkc_headers import tkkc_header, login_header, xhr_header, document_header, \
     save_answer_headers, index_header, capture_header
-from User import user
 
 
 def main_page():

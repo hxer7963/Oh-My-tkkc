@@ -5,7 +5,7 @@ from tkkc_common import get, post, session
 from tkkc_headers import capture_header
 
 
-def request_capture():
+def request_captcha():
     # print(capture_header['Cookie'])
     capture_url = '/getRandomImage.do'
     im = get(capture_url, capture_header)

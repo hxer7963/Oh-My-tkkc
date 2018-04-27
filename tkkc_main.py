@@ -5,11 +5,11 @@
 @time: 2017/4/21 23:08
 """
 from tkkc_implement import main_page, courses_homepage, bbs_page, bbs_task, task_assignment, assignment_document, manage_exam
+from User import User
 
 
 def main():
-    from User import user_login
-    user_login()
+    user = User()
     try:
         courses = main_page()
     except IndexError:
