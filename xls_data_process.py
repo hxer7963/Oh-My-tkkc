@@ -4,12 +4,9 @@
 @contact: hxer7963@gmail.com
 @time: 2017/4/26 17:49
 """
-import os, io, re, time
+import io, re
 import xlrd
-from _warnings import warn
-from random import randint
-from tkkc_common import get, session
-from tkkc_headers import document_header
+from request import request
 
 
 def xls2dict(xls):
@@ -34,28 +31,29 @@ def xls2dict(xls):
 
 def excel_dict(xlsx_url):
     """ Download and extract zip/rar file in memory rather than a file in local disk """
-    download_page = get(xlsx_url, document_header).text
+    download_page = request(xlsx_url).text
     resourceId_pattern = '"id":(.*?),"linkType"'
     resource = re.search(resourceId_pattern, download_page)
     resourceDownloadPermeters = 'data: "(.*?)&.*&taskId=(.*?)&iscomplete'
     postPermeters = re.search(resourceDownloadPermeters, download_page)
     print('正在下载excel文件...')
-    download_url = 'http://tkkc.hfut.edu.cn/checkResourceDownload.do' #?{}'.format(postPermeters[1])
+    download_url = '/checkResourceDownload.do' #?{}'.format(postPermeters[1])
     data = {
-        postPermeters[1]: None,
+        'MIME Type': 'application/x-www-form-urlencoded',
+        postPermeters[1]: '',
         'resourceId': resource.group(1),
         'downloadFrom': 1,
         'isMobile': 'false',
         'taskId': postPermeters[2],
-        'iscomplete': 'true',
+        'iscomplete': 'false',
         'history': 'false'
     }
-    xls_resource = session.post(download_url, data, document_header)   # content字节码, stream=True
+    xls_resource = request(download_url, data)   # content字节码, stream=True
     # print(xls_resource.json())
     if 'status' in xls_resource.json() and xls_resource.json()['status'] == 'indirect':  # 'status' in xls_resource.json and
         download_url = '/filePreviewServlet?indirect=true&resourceId={}'.format(resource.group(1))
-        xls_resource = get(download_url, document_header)
-
+        xls_resource = request(download_url)
+    print'资源下载成功，正在解压...')
     import rarfile, zipfile
     try:
         zf = zipfile.ZipFile(io.BytesIO(xls_resource.content))
