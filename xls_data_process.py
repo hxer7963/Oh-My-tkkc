@@ -53,7 +53,7 @@ def excel_dict(xlsx_url):
     if 'status' in xls_resource.json() and xls_resource.json()['status'] == 'indirect':  # 'status' in xls_resource.json and
         download_url = '/filePreviewServlet?indirect=true&resourceId={}'.format(resource.group(1))
         xls_resource = request(download_url)
-    print'资源下载成功，正在解压...')
+    print('资源下载成功，正在解压...')
     import rarfile, zipfile
     try:
         zf = zipfile.ZipFile(io.BytesIO(xls_resource.content))
