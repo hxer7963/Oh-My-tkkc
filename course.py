@@ -32,35 +32,79 @@ def course(name, course_homepage_href):
         learning_url, bbs_url = courses_homepage(name, course_homepage_href)
     except TimeoutError as te:
         print(te)
-        return
+        return None
     course_id = course_homepage_href.split('&')[-1].split('=')[-1]
     teaching_task_id = learning_url.split('&')[-1].split('=')[-1]
     # 获取交流界面，查看是否需要评论
     forum_id, discuss_cnt, bbs_hrefs = bbs_page(bbs_url, name)
     if discuss_cnt > 0 and bbs_hrefs: # disuss
         bbs_task(name, teaching_task_id, course_id, forum_id, discuss_cnt, bbs_hrefs)
-    # 进入学习 获取课程任务页面：题库下载、自测、考试
-    resource_url, exam_time, tasks = task_assignment(learning_url, teaching_task_id, forum_id)  # 返回set，存储各测试的url
-    course_abstract = []
-    for category, task_url in tasks:  # 使用多线程，assignment_document请求document，manage_exam中请求xhr
-        try:
-            questions_set = assignment_document(name, task_url)  # 请求任务document
-            unfinished_num = len(questions_set.exercises_id)
-        except ValueError as ve:
-            print(ve)
-            course_abstract.append('{}课程*考试*截止时间为:{}'.format(name, exam_time))
-        else:
-            print('好气啊!{}{}还有{}道题目未做....'.format(name, category, unfinished_num))
-            from xls_data_process import excel_dict
-            xls_dict = excel_dict(resource_url)     # 获取excel文件hash title存储到dict中
-            time_stamp = pc()
-            manage_exam(xls_dict, name, questions_set)
-            FMT = '{}{}已完成,共保存{}题,用时{:.2f}s;'
-            printInfo = FMT.format(name, category,  unfinished_num, pc()-time_stamp)
-            print(printInfo)
-            course_abstract.append(printInfo)
+    # 点击进入学习->获取课程任务页面：题库下载、自测、考试
+    resource_url, exam_time, task_entities = task_assignment(name, learning_url, teaching_task_id, forum_id)  # 返回set，存储各测试的url
+    qst_entities, course_abstract = extract_qst_entities(name, exam_time, task_entities)
+    if qst_entities:
+        abstract = manage_assignment(name, resource_url, qst_entities)
+        course_abstract.append(abstract)
     return '\n'.join([_ for _ in course_abstract])
 
+def manage_assignment(name, resource_url, qst_entities):
+    """ Firstly, Download the excel resource and decompress to dict."""
+    from xls_data_process import excel_dict
+    xls_dict = excel_dict(resource_url)     # 获取excel文件hash title存储到dict中
+
+    " each coroutine execute 10 requests"
+    MAX_WORKERS = len(qst_entities)//30 + 1
+    # from queue import Queue
+    # coroQueue = Queue()
+    # for _ in range(coro_cnt):
+        # sim = simulate(xls_dict)
+        # coroQueue.put(next(sim))
+
+    from time import perf_counter as pc
+    t0 = pc()
+    # for item in progressbar(qst_entities):
+        # coro = coroQueue.get()
+        # try:
+            # coro.send(item)
+        # except StopIteration as sit:
+            # coro = simulate(xls)
+            # coroQueue.put(next(coro))
+
+    from concurrent import futures
+    with futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+        to_do_list = []
+        for qst in qst_entities:
+            future = executor.submit(trackle_qst, xls_dict, qst)
+            to_do_list.append(future)
+        from tqdm import tqdm
+        done_iter = tqdm(futures.as_completed(to_do_list), total=len(to_do_list), ncols=90)
+        result = []
+        for future in done_iter:
+            res = future.result()
+            result.append(res)
+    msg = '《{}》已完成,用时{:.2f}s;'.format(name, pc()-t0)
+    print(msg, '\n')
+    return msg
+
+def extract_qst_entities(name, exam_time, tasks_entities):
+    qst_entities, abstract, qst_cnt = [], [], 0
+    for category, task_url in tasks_entities:  # 使用多线程，assignment_document请求document，manage_exam中请求xhr
+        try:
+            entities = assignment_document(name, task_url, exam_time)  # 请求任务document
+        except ValueError as ve:
+            print(ve)
+        else:
+            unimcompleted_cnt = len(entities)
+            if unimcompleted_cnt == 0:
+                msg = '《{}》{}已完成，但*未提交*'.format(name, category)
+                print(msg)
+                abstract.append(msg)
+            else:
+                qst_entities.extend(entities)
+                qst_cnt += unimcompleted_cnt
+    if qst_cnt > 0:
+        print('==>《{}》课程共有{}道题未写:-)'.format(name, qst_cnt))
+    return qst_entities, abstract
 
 
 def courses_homepage(name, course_url):
@@ -69,7 +113,7 @@ def courses_homepage(name, course_url):
     homepage_closed = '课程开始时间：(.*?)，暂时不能进入学习！'
     t0 = re.search(homepage_closed, texts)
     if t0:
-        raise TimeoutError('{}课程开始时间:{}, 暂时不能进入学习'.format(name, t0.group(1)))
+        raise TimeoutError('《{}》课程开始时间:{}, 暂时不能进入学习'.format(name, t0.group(1)))
         # raise TimeoutError('%s课程开始时间:%r,暂时不能进入学习', % (name, begin_time.group(1)))
     if texts.find('课程已结束') != -1:
         raise TimeoutError('{}课程已结束，不能进入学习'.format(name))
@@ -80,7 +124,7 @@ def courses_homepage(name, course_url):
     return task_homepage, bbs   # 进入学习 and 交流 页面
 
 
-def extract_qst(href):
+def extract_bbs(href):
     text = request(href).text
     tree = html.fromstring(text)
     title = tree.xpath('//div[@class="assignment-head"]/text()')
@@ -117,33 +161,37 @@ def bbs_page(bbs_url, name):
 def bbs_task(name, teaching_task_id, course_id, forum_id, dis_cnt, qst_href):     # 提问题
     from random import choice
     hrefs = [choice(qst_href) for _ in range(dis_cnt)]
-    qst = [extract_qst(href) for href in hrefs]
+    qst = [extract_bbs(href) for href in hrefs]
+    print('《{}》课程*讨论问题*'.format(name))
     for i in range(dis_cnt):
         post_url = '/student/bbs/manageDiscuss.do?{}&method=toAdd&teachingTaskId={}&forumId={}&' \
                                  'isModerator=false'.format(date(), teaching_task_id, forum_id)
         request(post_url)    # 获取发布讨论的网页
+        title, content = qst[i][0], qst[i][1].replace('\n', '')
         data = {
             'forumId': forum_id,
             'teachingTaskId': teaching_task_id,
             'isModerator': 'false',
-            'topic': qst[i][0],
-            'content': qst[i][1],
+            'topic': title,
+            'content': content,
         }
         dispatch = '/student/bbs/manageDiscuss.do?{}&method=add'.format(date())
         request(dispatch, data)  # 这是一个302转发
         # bbs_index = '/student/bbs/index.do?teachingTaskId={}&forumId={}&{}&'\
             # .format(teaching_task_id, course_id, date())  # 直接添加就行
         # request(bbs_index)
-        print('讨论问题->标题:{}\n内容:{}'.format(*qst[i]))
+        if len(content.decode('UTF-8')) > 50:
+            content = content.decode('utf-8')[:30] + '...' + content.decode('utf-8')[-15:] + '(omitted!)'
+        print('\t标题: {}\n\t内容: {}\n'.format(title, content))
     return forum_id
 
 
-def task_assignment(task_homepage, teaching_task_id, forum_id):     # 获取自测url
+def task_assignment(name, task_homepage, teaching_task_id, forum_id):     # 获取自测url
     texts = request(task_homepage).text  # 进入主页面
     tree = html.fromstring(texts)
     cur_state_idx = [_.strip() for _ in tree.xpath('//tr[@class="bg_tr"]/th/text()') if _.strip()].index('当前状态')
     tr = tree.xpath('//tr[@class="a"]')
-    tasks = []
+    tasks_entities = []
     for task in tr:
         category = task.xpath('.//td[@title]')[0].text.strip()
         if category == '题库下载':
@@ -153,39 +201,31 @@ def task_assignment(task_homepage, teaching_task_id, forum_id):     # 获取自�
                 exam_time = task.xpath('./td[4]')[0].text.strip()
             cur_state = [_.strip() for _ in task.xpath('./td//text()') if _.strip()]
             if '分' in cur_state[cur_state_idx]:
-                print('%s %s ^_^' % (cur_state[1], cur_state[cur_state_idx]))
+                print('《%s》%s %s ^_^' % (name, cur_state[1], cur_state[cur_state_idx]))
                 continue
             task_url = task.xpath('.//a/@href')[0]  # 没有完成任务则给出链接
-            tasks.append((category, task_url))
-    return resource_url, exam_time, tasks     # 答题的链接
+            tasks_entities.append((category, task_url))
+    return resource_url, exam_time, tasks_entities     # 答题的链接
 # examReplyId examId teachingTaskId在不同的自测任务中不同。exercises_id为list, 每道题不同.
-constant = namedtuple('Constant', 'date_time examReplyId examId teachingTaskId exercises_id')
+constant = namedtuple('Constant', 'date_time examReplyId examId teachingTaskId exam exercise_id idx')
 
 
-def assignment_document(name, task_url):  # 获取没有加载xhr题目的页面，得到xhr的参数
+def assignment_document(name, task_url, exam_time):  # 获取没有加载xhr题目的页面，得到xhr的参数
     text = request(task_url).text
     alert = '任务未开始'
     if re.search(alert, text):
-        raise ValueError('目前{}课程*考试*未开始'.format(name))
+        raise ValueError('《{}》课程*考试*尚未开始, 截止日期: {}'.format(name, exam_time))
     # xpath to get examReplyId examId teachingTaskId in Form
     tree = html.fromstring(text)
+    fmt = '/student/exam/manageExam.do?(.*?)&method=getExerciseInfo'
+    date_time = re.search(fmt, text).group(1)[1:]
     form_input = tree.xpath('//*[@id="saveAnswerForm"]')[0]
     exam_reply_id = form_input.xpath('//*[@id="examReplyId"]/@value')[0]
     exam_id = form_input.xpath('//*[@id="examId"]/@value')[0]
     teaching_task_id = form_input.xpath('//*[@id="teachingTaskId"]/@value')[0]
-    # print(exam_reply_id, exam_id, teaching_task_id)
 
-    exercise_id = '"complete":false,"examStudentExerciseId":(.*?),"exerciseId":(.*?),"index":(.*?)}'  #
-    exercises_id = [(exam, Id, int(idx)) for exam, Id, idx in re.findall(exercise_id, text)]
-    if 1 < len(exercises_id) < 15:
-        from operator import itemgetter
-        exercises_id.sort(key=itemgetter(2))
-        if exercises_id[0][2] != exercises_id[1][2]-1 and exercises_id[-2][2] != exercises_id[-1][2]-1:
-            raise ValueError('当前还有{}道题没找到答案,题号为: {}'.format(len(exercises_id), ', '.join([str(item[2]) for item in exercises_id])))
-    date_time = '/student/exam/manageExam.do?(.*?)&method=getExerciseInfo'
-    date_time = re.search(date_time, text).group(1)[1:]
-    const = constant(date_time=date_time, examReplyId=exam_reply_id, examId=exam_id,
-                     teachingTaskId=teaching_task_id, exercises_id=exercises_id)
+    fmt = '"complete":false,"examStudentExerciseId":(.*?),"exerciseId":(.*?),"index":(.*?)}'  #
+    const = [ constant(date_time, exam_reply_id, exam_id, teaching_task_id, exam, exercise_id, idx) for exam, exercise_id, idx in re.findall(fmt, text) ]
     return const
 
 
@@ -202,33 +242,32 @@ def xhr_question(date_time, reply_id, student_exercise_id, exercise_id):
     # assert 'optionsC' in r.json()
 
 
-def manage_exam(xls_dict, course_name, assignment):
-    date_time = assignment.date_time
-    exam_reply_id = assignment.examReplyId
+def trackle_qst(xls_dict, qst):
+    date_time, exam_reply_id, examId, teachingTaskId, examStudentExerciseId, exerciseId, idx  = qst
     data = {
         'examReplyId': exam_reply_id,
         'examStudentExerciseId': '',
         'exerciseId': '',
-        'examId': assignment.examId,
-        'teachingTaskId': assignment.teachingTaskId,
+        'examId': examId,
+        'teachingTaskId': teachingTaskId,
         'content': '',
     }
-    for examStudentExerciseId, exerciseId, idx in assignment.exercises_id:
-        json = xhr_question(date_time, exam_reply_id,  examStudentExerciseId, exerciseId)
-        try:
-            title, options_answers, category = json_extract(json)
-            print(str(idx) + '.', title)
-            answer = xls_search_answer(xls_dict, title, options_answers, category)
-        except ValueError as exc:   # 没有找打就不保存题目，直接下一题
-            print('没有找到答案, 请自行补题:-)')
-        else:
-            data['examStudentExerciseId'] = examStudentExerciseId
-            data['exerciseId'] = exerciseId
-            print('答案为:', ' '.join(answer))
-            print('正在保存...', end=' ')
-            sys.stdout.flush()
-            types = json['type']
-            save_answer(types, answer, data)
+    json = xhr_question(date_time, exam_reply_id, examStudentExerciseId, exerciseId)
+    try:
+        title, options_answers, category = json_extract(json)
+        answer = xls_search_answer(xls_dict, title, options_answers, category)
+    except ValueError as exc:   # 没有找打就不保存题目，直接下一题
+        # print('没有找到答案, 请自行补题:-)')
+        pass
+    else:
+        data['examStudentExerciseId'] = examStudentExerciseId
+        data['exerciseId'] = exerciseId
+        # print('答案为:', ' '.join(answer))
+        # print('正在保存...', end=' ')
+        sys.stdout.flush()
+        types = json['type']
+        save_answer(types, answer, data)
+    return idx
 
 def save_answer(types, answers_list, data):
     """
@@ -254,7 +293,8 @@ def save_answer(types, answers_list, data):
     try:
         response = request(hand_url, data_copy)   # response "status": "ok"
     except requests.exceptions.ConnectionError:
-        print('保存失败，请自行提交')
+        # print('保存失败，请自行提交')
+        pass
     else:
-        print('保存成功')
+        # print('保存成功')
         return response.json()    # AssertionError

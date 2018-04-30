@@ -12,11 +12,10 @@ def main():
     user = User()
     user.login()
     courses_list = main_page()
-    from time import perf_counter as pc, sleep
-    start_time = pc()
     abstracts = []
     for name, href in courses_list:
         abstracts.append(course(name, href))
+    abstracts = [_ for _ in abstracts if _.strip()]
     if abstracts:
         print('-'*40, '\n'.join([_ for _ in abstracts]), sep='\n')
         print('-'*40)

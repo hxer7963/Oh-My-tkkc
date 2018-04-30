@@ -36,7 +36,7 @@ def excel_dict(xlsx_url):
     resource = re.search(resourceId_pattern, download_page)
     resourceDownloadPermeters = 'data: "(.*?)&.*&taskId=(.*?)&iscomplete'
     postPermeters = re.search(resourceDownloadPermeters, download_page)
-    print('正在下载excel文件...')
+    # print('正在下载excel文件...')
     download_url = '/checkResourceDownload.do' #?{}'.format(postPermeters[1])
     data = {
         'MIME Type': 'application/x-www-form-urlencoded',
@@ -53,7 +53,7 @@ def excel_dict(xlsx_url):
     if 'status' in xls_resource.json() and xls_resource.json()['status'] == 'indirect':  # 'status' in xls_resource.json and
         download_url = '/filePreviewServlet?indirect=true&resourceId={}'.format(resource.group(1))
         xls_resource = request(download_url)
-    print('资源下载成功，正在解压...')
+    # print('资源下载成功，正在解压...')
     import rarfile, zipfile
     try:
         zf = zipfile.ZipFile(io.BytesIO(xls_resource.content))
@@ -100,16 +100,16 @@ specify_answers = {'中国化', '1', '60', '1300', '政治建设', '绿色低碳
 def xls_search_answer(xls_dict, title, options_answers, sheet_name):
     title = data_clear(title)
     answers_list = xls_dict[hash(title)]
-    if not answers_list:
-        if sheet_name == '判断题':
-            if '270' in title:
-                answers_list.append('A')
-            elif '政府负责' in title or '没有任何改变' in title or '战胜自然' in title or '人民日益增长的美好生活需要与落后的社会生产之间的矛盾' in title:
-                answers_list.append('B')
-        else:
-            for option in options_answers:
-                if option in specify_answers:
-                    answers_list.append(chr(options_answers.index(option)+ord('A')))
+    # if not answers_list:
+        # if sheet_name == '判断题':
+            # if '270' in title:
+                # answers_list.append('A')
+            # elif '政府负责' in title or '没有任何改变' in title or '战胜自然' in title or '人民日益增长的美好生活需要与落后的社会生产之间的矛盾' in title:
+                # answers_list.append('B')
+        # else:
+            # for option in options_answers:
+                # if option in specify_answers:
+                    # answers_list.append(chr(options_answers.index(option)+ord('A')))
     if (sheet_name != '多选题' and len(answers_list) > 1) or (not answers_list) or (sheet_name == '多选题' and len(answers_list) < 2):
         # print(title, options_answers)       # 输出没有找到答案的题目与选项
         raise ValueError('没有找到答案')

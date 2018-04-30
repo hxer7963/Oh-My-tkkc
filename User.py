@@ -30,8 +30,6 @@ class User():
         while login_cnt > 0:
             annonuce = re.findall('<input type="hidden" name="(.*?)" value="announce"', texts, re.S)[0]
             login_url = re.findall('action="(.*?)"', texts, re.S)[0]
-            # set_cookie(login_header, 'JSESSIONID')
-            # set_cookie(captcha_header, 'JSESSIONID')
 
             captcha_code = request_captcha()
             data = {
