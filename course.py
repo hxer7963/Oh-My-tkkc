@@ -51,26 +51,13 @@ def manage_assignment(name, resource_url, qst_entities):
     """ Firstly, Download the excel resource and decompress to dict."""
     from xls_data_process import excel_dict
     xls_dict = excel_dict(resource_url)     # 获取excel文件hash title存储到dict中
-
+    if not xls_dict:
+        return '《%s》课程excel文件获取失败!'
     " each coroutine execute 10 requests"
-    MAX_WORKERS = len(qst_entities)//30 + 1
-    # from queue import Queue
-    # coroQueue = Queue()
-    # for _ in range(coro_cnt):
-        # sim = simulate(xls_dict)
-        # coroQueue.put(next(sim))
-
+    MAX_WORKERS = max(2, len(qst_entities)//30 + 1)
+    from concurrent import futures
     from time import perf_counter as pc
     t0 = pc()
-    # for item in progressbar(qst_entities):
-        # coro = coroQueue.get()
-        # try:
-            # coro.send(item)
-        # except StopIteration as sit:
-            # coro = simulate(xls)
-            # coroQueue.put(next(coro))
-
-    from concurrent import futures
     with futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
         to_do_list = []
         for qst in qst_entities:
@@ -81,9 +68,10 @@ def manage_assignment(name, resource_url, qst_entities):
         result = []
         for future in done_iter:
             res = future.result()
-            result.append(res)
+            if res:
+                result.append(res)
     msg = '《{}》已完成,用时{:.2f}s;'.format(name, pc()-t0)
-    print(msg, '\n')
+    print(msg, '\n未保存的题数有:', len(result))
     return msg
 
 def extract_qst_entities(name, exam_time, tasks_entities):
@@ -162,7 +150,7 @@ def bbs_task(name, teaching_task_id, course_id, forum_id, dis_cnt, qst_href):   
     from random import choice
     hrefs = [choice(qst_href) for _ in range(dis_cnt)]
     qst = [extract_bbs(href) for href in hrefs]
-    print('《{}》课程*讨论问题*'.format(name))
+    print('《{}》课程讨论问题:'.format(name))
     for i in range(dis_cnt):
         post_url = '/student/bbs/manageDiscuss.do?{}&method=toAdd&teachingTaskId={}&forumId={}&' \
                                  'isModerator=false'.format(date(), teaching_task_id, forum_id)
@@ -180,9 +168,10 @@ def bbs_task(name, teaching_task_id, course_id, forum_id, dis_cnt, qst_href):   
         # bbs_index = '/student/bbs/index.do?teachingTaskId={}&forumId={}&{}&'\
             # .format(teaching_task_id, course_id, date())  # 直接添加就行
         # request(bbs_index)
-        if len(content.decode('UTF-8')) > 50:
-            content = content.decode('utf-8')[:30] + '...' + content.decode('utf-8')[-15:] + '(omitted!)'
-        print('\t标题: {}\n\t内容: {}\n'.format(title, content))
+        # print(type(content), content)
+        # if len(content.decode('utf8')) > 50:
+            # content = content.decode('utf-8')[:30] + '...' + content.decode('utf-8')[-15:] + '(omitted!)'
+        print('\t标题: {}\t内容: {}'.format(title, content))
     return forum_id
 
 
@@ -256,9 +245,8 @@ def trackle_qst(xls_dict, qst):
     try:
         title, options_answers, category = json_extract(json)
         answer = xls_search_answer(xls_dict, title, options_answers, category)
-    except ValueError as exc:   # 没有找打就不保存题目，直接下一题
-        # print('没有找到答案, 请自行补题:-)')
-        pass
+    except (ValueError, TypeError) as exc:   # 没有找打就不保存题目，直接下一题
+        return idx
     else:
         data['examStudentExerciseId'] = examStudentExerciseId
         data['exerciseId'] = exerciseId
@@ -267,7 +255,7 @@ def trackle_qst(xls_dict, qst):
         sys.stdout.flush()
         types = json['type']
         save_answer(types, answer, data)
-    return idx
+    return None
 
 def save_answer(types, answers_list, data):
     """
@@ -290,11 +278,5 @@ def save_answer(types, answers_list, data):
             key = prefix.format(answer)
             data_copy[key] = 'true'     # 切莫用data，因为传过来的data是按址传参的...
     hand_url = '/student/exam/manageExam.do?i%s&method=saveAnswer' % date()
-    try:
-        response = request(hand_url, data_copy)   # response "status": "ok"
-    except requests.exceptions.ConnectionError:
-        # print('保存失败，请自行提交')
-        pass
-    else:
-        # print('保存成功')
-        return response.json()    # AssertionError
+    response = request(hand_url, data_copy)   # response "status": "ok"
+    return response.json()    # AssertionError

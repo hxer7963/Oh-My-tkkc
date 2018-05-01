@@ -16,7 +16,7 @@ class User():
     def collate(self, mode):
         if mode == 'number':
             if not self.number.isnumeric() or len(self.number) != 10 or not self.number.startswith('20'):
-                self.number = input('  bad stutent number!!!\nretype your stduent number:')
+                self.number = input('  bad stutent number!!!\nretype your stduent number: ')
                 self.collate('number')
         else:
             print("invaild password!, the wrong password is %s" % self.pwd)

@@ -22,6 +22,7 @@ def xls2dict(xls):
         rows = sheet.nrows
         for row_no in range(rows):
             qst = data_clear(str(sheet.row(row_no)[0].value))
+            if not qst: continue
             answers = str(sheet.row(row_no)[-1].value).split(',')
             if sheet_name == '判断题':
                 answers = ['A'] if answers[0].strip() == '正确' else ['B']
@@ -58,20 +59,18 @@ def excel_dict(xlsx_url):
     try:
         zf = zipfile.ZipFile(io.BytesIO(xls_resource.content))
         archive = zf
-    except zipfile.error:
+    except zipfile.error as ze:
         try:
             rf = rarfile.RarFile(io.BytesIO(xls_resource.content))
             archive = rf
-        except rarfile.error:
-            raise TypeError("compress Type isn't zip nor rar!")
-            exit(1)
-    else:
-        for file in archive.infolist():
-            if file.filename.endswith('.xls'):
-                with archive.open(file) as fd:
-                    import xlrd
-                    xls = xlrd.open_workbook(file_contents=fd.read())
-                    return xls2dict(xls)
+        except rarfile.error as rfe:
+            return None
+    for file in archive.infolist():
+        if file.filename.endswith('.xls'):
+            with archive.open(file) as fd:
+                import xlrd
+                xls = xlrd.open_workbook(file_contents=fd.read())
+                return xls2dict(xls)
 
 
 def json_extract(json):
@@ -100,16 +99,16 @@ specify_answers = {'中国化', '1', '60', '1300', '政治建设', '绿色低碳
 def xls_search_answer(xls_dict, title, options_answers, sheet_name):
     title = data_clear(title)
     answers_list = xls_dict[hash(title)]
-    # if not answers_list:
-        # if sheet_name == '判断题':
-            # if '270' in title:
-                # answers_list.append('A')
-            # elif '政府负责' in title or '没有任何改变' in title or '战胜自然' in title or '人民日益增长的美好生活需要与落后的社会生产之间的矛盾' in title:
-                # answers_list.append('B')
-        # else:
-            # for option in options_answers:
-                # if option in specify_answers:
-                    # answers_list.append(chr(options_answers.index(option)+ord('A')))
+    if not answers_list:
+        if sheet_name == '判断题':
+            if '270' in title:
+                answers_list.append('A')
+            elif '政府负责' in title or '没有任何改变' in title or '战胜自然' in title or '人民日益增长的美好生活需要与落后的社会生产之间的矛盾' in title:
+                answers_list.append('B')
+        else:
+            for option in options_answers:
+                if option in specify_answers:
+                    answers_list.append(chr(options_answers.index(option)+ord('A')))
     if (sheet_name != '多选题' and len(answers_list) > 1) or (not answers_list) or (sheet_name == '多选题' and len(answers_list) < 2):
         # print(title, options_answers)       # 输出没有找到答案的题目与选项
         raise ValueError('没有找到答案')
