@@ -1,8 +1,6 @@
-#Oh-My-tkkc
+# Oh-My-tkkc
 
-oh-my-tkkc is a complete automatic crawler pragram which only need to type your student num and password in [tkkc](http://tkkc.hfut.edu.cn), then it will identification verfication code by send the bytes of captcha to `api.hfutoyi`, What you need to do is **just** to check the result and file *your* exercise or exam to server.
-
-To learn more, visit [oh-my-tkkc](https://hxer.me/post/cb3e52e1.html).
+oh-my-tkkc is a **complete** automatic crawler pragram what you need to do is *just* type your your student num and password in [tkkc](http://tkkc.hfut.edu.cn)，details visit [oh-my-tkkc](https://hxer.me/post/cb3e52e1.html) which write in Chinese。
 
 ## Getting Started
 
@@ -31,7 +29,7 @@ $ virtualenv tkkc -p /usr/bin/python3.5
 $ source tkkc/bin/activate
 (tkkc) $ pip --version
 pip 9.0.3 from /home/hxer/Oh-My-tkkc/tkkc/lib/python3.5/site-packages (python 3.5)
-(tkkc) $ pip install requests lxml Pillow xlrd rarfile
+(tkkc) $ pip install requests lxml Pillow xlrd rarfile tqdm concurrent
 ```
 
 ##### install UnRAR on your Platform
@@ -47,9 +45,7 @@ Because the type of compressed file is rar, And rarfile third-party library is u
   (tkkc) $ python -c "import rarfile; print(rarfile.__file__)"
   ```
 
-  * Modify the `UNRAR_TOOL=r"the path of UnRAR.exe"`;
-
-  see [details](https://stackoverflow.com/questions/17614467/how-can-unrar-a-file-with-python) 
+  * Modify the line `UNRAR_TOOL="unrar"` to `UNRAR_TOOL=r'the path of UnRAR.exe'`
 
 * Linux
 
@@ -62,7 +58,7 @@ Because the type of compressed file is rar, And rarfile third-party library is u
 ##### Launch it
 
 ```shell
-(tkkc) $ python tkkc_main.py
+(tkkc) $ python main.py
 ```
 
 Type your personal details included student num and password, if password invalid, Oh-My-tkkc will explicit in plain-text in terminal ! When it finished, Don't forget to open the [tkkc](http://tkkc.hfut.edu.cn) to file your exercise/exam. enjoying it !
