@@ -132,7 +132,10 @@ def bbs_page(bbs_url, name):
     questions = tree.xpath('//tr[@class="a"]')
     entities = []
     for question in questions:
-        qst_href = question.xpath('td/a/@href')[0].strip()
+        try:
+            qst_href = question.xpath('td/a/@href')[0].strip()
+        except IndexError: # maybe there is a XSS reflect
+            continue
         comments = int([item.strip() for item in question.xpath('td/text()') if item.strip()][1])
         entities.append((comments, qst_href))
     entities.sort()
