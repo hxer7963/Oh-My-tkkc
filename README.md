@@ -29,7 +29,7 @@ $ virtualenv tkkc -p /usr/bin/python3.5
 $ source tkkc/bin/activate
 (tkkc) $ pip --version
 pip 9.0.3 from /home/hxer/Oh-My-tkkc/tkkc/lib/python3.5/site-packages (python 3.5)
-(tkkc) $ pip install requests lxml Pillow xlrd rarfile tqdm concurrent
+(tkkc) $ pip install requests lxml Pillow xlrd rarfile tqdm
 ```
 
 ##### install UnRAR on your Platform
